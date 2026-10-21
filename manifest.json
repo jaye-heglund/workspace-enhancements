@@ -1,0 +1,9 @@
+{
+  "id": "workspace-enhancements",
+  "name": "UX Enhancements",
+  "version": "0.1.0",
+  "minAppVersion": "1.6.6",
+  "description": "Optional interface and navigation improvements for Obsidian.",
+  "author": "Personal",
+  "isDesktopOnly": false
+}

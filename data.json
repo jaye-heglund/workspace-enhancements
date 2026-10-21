@@ -1,0 +1,38 @@
+{
+  "features": {
+    "stickyHeadings": true,
+    "inFileNavigation": true,
+    "moveTabBetweenGroups": true,
+    "quickSwitcherNewTab": true,
+    "notePeek": true,
+    "replaceQuickSwitcher": true
+  },
+  "sticky": {
+    "stickyType": "prevToH1",
+    "verticalGap": 0,
+    "headingFontSizes": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
+    "headingOffsets": [
+      0.5,
+      1.5,
+      2.5,
+      3.5,
+      4.5,
+      5.5
+    ],
+    "showHeadingLevels": false,
+    "clickToJump": true,
+    "useInFileNavigation": true
+  },
+  "navigation": {
+    "historyLimit": 10
+  },
+  "migrationComplete": true,
+  "notePeekF12Accepted": true
+}
