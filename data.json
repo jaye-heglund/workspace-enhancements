@@ -4,8 +4,13 @@
     "inFileNavigation": true,
     "moveTabBetweenGroups": true,
     "quickSwitcherNewTab": true,
+    "findInSplitOnRepeat": true,
     "notePeek": true,
-    "replaceQuickSwitcher": true
+    "popoutWordCount": true,
+    "popoutSidebars": true,
+    "replaceQuickSwitcher": true,
+    "replaceCommandPalette": true,
+    "replaceTemplatePicker": true
   },
   "sticky": {
     "stickyType": "prevToH1",
@@ -33,6 +38,22 @@
   "navigation": {
     "historyLimit": 10
   },
+  "recentCommandLimit": 5,
+  "recentFileLimit": 5,
+  "recentCommands": [
+    "outline:open",
+    "app:reload",
+    "editor:toggle-strikethrough",
+    "editor:toggle-bold",
+    "workspace:move-to-new-window",
+    "insert-current-date",
+    "obsidian-excalidraw-plugin:excalidraw-autocreate-and-embed-popout",
+    "file-explorer:reveal-active-file",
+    "file-recovery:open",
+    "editor:insert-mathblock",
+    "insert-template",
+    "markdown:toggle-preview"
+  ],
   "migrationComplete": true,
   "notePeekF12Accepted": true
 }

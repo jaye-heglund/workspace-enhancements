@@ -1,3 +1,8 @@
+.we-picker-pointer-hidden,
+.we-picker-pointer-hidden * {
+  cursor: none !important;
+}
+
 .cm-editor.sh-editor-host {
   display: flex !important;
   flex-direction: column !important;
@@ -117,6 +122,25 @@
 .we-note-peek-action:disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+.we-popout-word-count {
+  padding-inline: 8px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  white-space: nowrap;
+}
+
+.we-popout-word-count.is-floating {
+  position: fixed;
+  inset-inline-end: 12px;
+  inset-block-end: 12px;
+  z-index: var(--layer-status-bar, 10);
+  padding: 4px 8px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  box-shadow: var(--shadow-s);
 }
 
 .we-note-peek-content {
@@ -258,6 +282,12 @@
 
 .we-search-picker-result[aria-selected="true"] {
   background: var(--background-modifier-hover);
+}
+
+.we-search-picker-section-start {
+  margin-top: 5px;
+  padding-top: 12px;
+  border-top: 1px solid var(--background-modifier-border);
 }
 
 .we-search-picker-title,
