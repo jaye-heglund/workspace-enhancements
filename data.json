@@ -41,8 +41,8 @@
   "recentCommandLimit": 5,
   "recentFileLimit": 5,
   "recentCommands": [
-    "outline:open",
     "app:reload",
+    "outline:open",
     "editor:toggle-strikethrough",
     "editor:toggle-bold",
     "workspace:move-to-new-window",

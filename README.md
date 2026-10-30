@@ -9,7 +9,7 @@ Optional navigation and editing tools for Obsidian. Enable features individually
 - **Template Picker:** Enable **Replace template picker** to search the configured template folder and insert templates with `{{date}}`, `{{time}}`, and `{{title}}` expansion and frontmatter merging.
 - **Quick Switcher: open in new tab:** In Obsidian's Quick Switcher, Right Arrow opens the selected file in a new tab and leaves the switcher open. This setting also controls Right Arrow behavior in File Finder.
 - **In-File Navigation:** Use the mouse back and forward buttons to revisit recent cursor and scroll positions in the current note. The history length is configurable.
-- **Move Tab Between Groups (desktop):** Commands move the active tab to the previous or next group.
+- **Move Tab Between Groups (desktop):** Commands move the active tab to the previous or next group in the same window, wrapping from either end to the opposite group.
 - **Sidebar panes in secondary windows (desktop):** In a secondary window, Ctrl/Cmd+B toggles a left split pane with the main window's left sidebar views; Ctrl/Cmd+Alt+B toggles a right split pane with its right sidebar views; sidebar commands such as Search, File Explorer, Outline, and Backlinks open their views in that window. Ctrl/Cmd+Shift+E opens File Explorer there. Each pane keeps its views in tabs, and the main sidebar views remain in place.
 
 ## In-Note Toolsb

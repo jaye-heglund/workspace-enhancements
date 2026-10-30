@@ -1201,8 +1201,19 @@ class MoveTabBetweenGroups {
       return;
     }
 
+    const sourceDocument = sourceLeaf.containerEl?.ownerDocument;
+    const sidebarLeaves = new Set();
+    for (const dock of [workspace.leftSplit, workspace.rightSplit]) {
+      if (dock) workspace.iterateLeaves(dock, (leaf) => sidebarLeaves.add(leaf));
+    }
+    const secondarySideGroups = this.plugin.popoutSidebars?.documents.get(sourceDocument)?.sideGroups;
+    for (const sideGroup of Object.values(secondarySideGroups || {})) {
+      for (const leaf of sideGroup?.leaves || []) sidebarLeaves.add(leaf);
+    }
+
     const groups = [];
-    workspace.iterateRootLeaves((leaf) => {
+    workspace.iterateAllLeaves((leaf) => {
+      if (leaf.containerEl?.ownerDocument !== sourceDocument || sidebarLeaves.has(leaf)) return;
       const group = leaf.parent;
       if (!(group instanceof WorkspaceTabs)) return;
       let entry = groups.find((candidate) => candidate.group === group);
@@ -1214,21 +1225,25 @@ class MoveTabBetweenGroups {
     });
 
     const sourceGroupIndex = groups.findIndex((entry) => entry.group === sourceLeaf.parent);
-    const destination = groups[sourceGroupIndex + direction];
-    const createNextGroup = direction > 0 && !destination;
-    if (sourceGroupIndex < 0 || (!destination && !createNextGroup)) {
-      new Notice(`There is no ${direction < 0 ? "previous" : "next"} tab group.`);
+    const sourceGroup = groups[sourceGroupIndex];
+    const destination = groups.length > 1
+      ? groups[(sourceGroupIndex + direction + groups.length) % groups.length]
+      : null;
+    const createAdjacentGroup = groups.length === 1;
+    if (sourceGroupIndex < 0 || (!destination && !createAdjacentGroup)) {
+      new Notice("There is no other tab group in this window.");
       return;
     }
 
     let destinationLeaf;
     let createdDestinationLeaf = false;
+    const keepSourceLeaf = createAdjacentGroup && sourceGroup.leaves.length === 1;
     try {
       const viewState = sourceLeaf.getViewState();
       const ephemeralState = sourceLeaf.getEphemeralState();
       const sourceIdentity = getFileIdentity(viewState);
-      if (createNextGroup) {
-        destinationLeaf = workspace.createLeafBySplit(sourceLeaf, "vertical", false);
+      if (createAdjacentGroup) {
+        destinationLeaf = workspace.createLeafBySplit(sourceLeaf, "vertical", direction < 0);
         createdDestinationLeaf = true;
       } else {
         destinationLeaf = sourceIdentity
@@ -1252,7 +1267,7 @@ class MoveTabBetweenGroups {
       return;
     }
 
-    sourceLeaf.detach();
+    if (!keepSourceLeaf) sourceLeaf.detach();
     workspace.setActiveLeaf(destinationLeaf, false, true);
   }
 }
@@ -1609,10 +1624,13 @@ class PopoutSidebars {
     this.restoreSidebarCommands();
     for (const doc of this.documents.keys()) {
       const windowRecord = this.documents.get(doc);
-      for (const sideGroup of Object.values(windowRecord.sideGroups)) {
+      for (const side of ["left", "right"]) {
+        const sideGroup = windowRecord.sideGroups[side];
         if (!sideGroup) continue;
+        windowRecord.sideGroups[side] = null;
         for (const leaf of sideGroup.leaves) leaf.detach();
       }
+      this.resizeSideGroups(windowRecord);
       this.unregisterDocument(doc);
     }
   }
@@ -1627,11 +1645,13 @@ class PopoutSidebars {
     eventTarget.addEventListener("focus", onFocus, true);
     this.documents.set(doc, {
       document: doc,
+      document: doc,
       eventTarget,
       window,
       onFocus,
       cleanupFrame: 0,
-      sideGroups: { left: null, right: null }
+      sideGroups: { left: null, right: null },
+      originalCenterDimensions: null
     });
     if (doc.hasFocus?.()) this.activeDocument = doc;
   }
@@ -1687,6 +1707,7 @@ class PopoutSidebars {
       windowRecord.sideGroups[side] = null;
       for (const leaf of sideGroup.leaves) leaf.detach();
     }
+    this.resizeSideGroups(windowRecord);
   }
 
   handleKeyDown(event) {
@@ -1815,6 +1836,27 @@ class PopoutSidebars {
     return activeEditorLeaf || firstEditorLeaf || activeLeaf || firstLeaf;
   }
 
+  getWindowEdgeLeaf(sourceDocument, side, windowRecord) {
+    const sidebarLeaves = new Set();
+    for (const sideGroup of Object.values(windowRecord.sideGroups)) {
+      for (const leaf of sideGroup?.leaves || []) sidebarLeaves.add(leaf);
+    }
+
+    let edgeLeaf = null;
+    let edgePosition = side === "left" ? Infinity : -Infinity;
+    this.app.workspace.iterateAllLeaves((leaf) => {
+      if (leaf.containerEl?.ownerDocument !== sourceDocument || !leaf.view?.editor || sidebarLeaves.has(leaf)) return;
+      const bounds = leaf.containerEl.getBoundingClientRect?.();
+      if (!bounds) return;
+      const position = side === "left" ? bounds.left : bounds.right;
+      if ((side === "left" && position < edgePosition) || (side === "right" && position > edgePosition)) {
+        edgeLeaf = leaf;
+        edgePosition = position;
+      }
+    });
+    return edgeLeaf;
+  }
+
   getSidebarStates(side) {
     const dock = side === "left" ? this.app.workspace.leftSplit : this.app.workspace.rightSplit;
     const states = [];
@@ -1837,20 +1879,38 @@ class PopoutSidebars {
   resizeSideGroups(windowRecord) {
     const leftGroup = windowRecord.sideGroups.left?.leaves[0]?.parent;
     const rightGroup = windowRecord.sideGroups.right?.leaves[0]?.parent;
-    const sourceLeaf = windowRecord.sideGroups.left?.sourceLeaf || windowRecord.sideGroups.right?.sourceLeaf;
-    const sourceGroup = sourceLeaf?.parent;
-    if (!sourceGroup?.setDimension) return;
-    if (leftGroup && rightGroup) {
-      leftGroup.setDimension(22);
-      sourceGroup.setDimension(56);
-      rightGroup.setDimension(22);
-    } else if (leftGroup) {
-      leftGroup.setDimension(24);
-      sourceGroup.setDimension(76);
-    } else if (rightGroup) {
-      sourceGroup.setDimension(76);
-      rightGroup.setDimension(24);
+    const activeSideCount = Number(Boolean(leftGroup)) + Number(Boolean(rightGroup));
+    const centerGroups = this.getCenterGroups(windowRecord);
+    if (!activeSideCount && windowRecord.originalCenterDimensions) {
+      for (const [group, dimension] of windowRecord.originalCenterDimensions) {
+        if (centerGroups.has(group)) group.setDimension?.(dimension);
+      }
+      windowRecord.originalCenterDimensions = null;
+      return;
     }
+    if (!centerGroups.size) return;
+
+    const centerShare = 100 - activeSideCount * 20;
+    const totalCenterWeight = [...centerGroups.values()].reduce((total, weight) => total + weight, 0);
+    for (const [group, weight] of centerGroups) {
+      group.setDimension?.(centerShare * weight / totalCenterWeight);
+    }
+    leftGroup?.setDimension?.(20);
+    rightGroup?.setDimension?.(20);
+  }
+
+  getCenterGroups(windowRecord) {
+    const sideLeaves = new Set([
+      ...(windowRecord.sideGroups.left?.leaves || []),
+      ...(windowRecord.sideGroups.right?.leaves || [])
+    ]);
+    const centerGroups = new Map();
+    this.app.workspace.iterateAllLeaves((leaf) => {
+      if (leaf.containerEl?.ownerDocument !== windowRecord.document || sideLeaves.has(leaf)) return;
+      if (!(leaf.parent instanceof WorkspaceTabs)) return;
+      centerGroups.set(leaf.parent, leaf.parent.dimension > 0 ? leaf.parent.dimension : 1);
+    });
+    return centerGroups;
   }
 
   async showSide(side, sourceDocument = null) {
@@ -1880,11 +1940,17 @@ class PopoutSidebars {
       return;
     }
 
+    if (!windowRecord.sideGroups.left && !windowRecord.sideGroups.right) {
+      windowRecord.originalCenterDimensions = new Map(
+        [...this.getCenterGroups(windowRecord).keys()].map((group) => [group, group.dimension ?? null])
+      );
+    }
     const workspace = this.app.workspace;
     const sideGroup = { sourceLeaf, leaves: [] };
     windowRecord.sideGroups[side] = sideGroup;
     try {
-      const firstLeaf = workspace.createLeafBySplit(sourceLeaf, "vertical", side === "left");
+      const edgeLeaf = this.getWindowEdgeLeaf(sourceDocument, side, windowRecord) || sourceLeaf;
+      const firstLeaf = workspace.createLeafBySplit(edgeLeaf, "vertical", side === "left");
       sideGroup.leaves.push(firstLeaf);
       await firstLeaf.setViewState(states[0].viewState, states[0].ephemeralState);
       this.compactTabHeader(firstLeaf, states[0].viewState);
@@ -2179,7 +2245,7 @@ class WorkspaceEnhancementsSettings extends PluginSettingTab {
         : "You'll be asked once whether to use F12. You can change the shortcut in Settings → Hotkeys.";
     new Setting(containerEl).setName("Note Peek hotkey").setDesc(notePeekHotkeyDescription);
     if (Platform.isDesktop) {
-      this.addFeatureToggle(containerEl, "Move Tab Between Groups", "Add commands to move the active tab to the previous or next group.", "moveTabBetweenGroups");
+      this.addFeatureToggle(containerEl, "Move Tab Between Groups", "Move the active tab to the previous or next group in this window, wrapping at either end.", "moveTabBetweenGroups");
     } else {
       new Setting(containerEl)
         .setName("Move Tab Between Groups")
